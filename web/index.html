@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark"><title>Docker Tracker</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <a class="brand" href="/"><span class="mark">DT</span><span>Docker Tracker</span></a>
+      <nav><button class="nav active" data-view="images">▦ <span>Images</span></button><button class="nav" data-view="settings">⚙ <span>Connection</span></button></nav>
+      <div class="aside-bottom"><div class="connection"><span id="statusDot" class="dot"></span><div><strong id="statusLabel">Checking…</strong><small id="statusDetail">Kubernetes Secret</small></div></div></div>
+    </aside>
+    <main>
+      <header><div><p class="eyebrow">Registry workspace</p><h1 id="pageTitle">Images</h1></div><button id="theme" class="icon" title="Toggle color mode" aria-label="Toggle color mode">◐</button></header>
+
+      <section id="imagesView">
+        <div class="toolbar"><label class="search"><span>⌕</span><input id="search" placeholder="Filter repositories or tags…" autocomplete="off"></label><button id="refresh" class="secondary">↻ Refresh</button></div>
+        <div id="notice" class="notice hidden"></div>
+        <div class="layout">
+          <section class="panel repositories"><div class="panel-head"><div><h2>Repositories</h2><span id="repoCount" class="muted">—</span></div></div><div id="repoList" class="list"><div class="empty">Connect Docker Hub to begin.</div></div><div id="repoPager" class="pager"></div></section>
+          <section class="panel tags"><div class="panel-head"><div><h2 id="tagTitle">Tags</h2><span id="tagCount" class="muted">Select a repository</span></div><label class="check-all"><input type="checkbox" id="selectAll"> Select visible</label></div><div id="tagList" class="tag-list"><div class="empty big">Choose a repository to inspect its tags.</div></div><div id="tagPager" class="pager"></div></section>
+        </div>
+      </section>
+
+      <section id="settingsView" class="hidden settings-wrap">
+        <div class="settings-copy"><p class="eyebrow">Secure connection</p><h2>Docker Hub credentials</h2><p>Your personal access token is validated with Docker Hub, then stored only in a Kubernetes Secret. Use a token with Read, Write, Delete permissions.</p><div class="security-note">The browser never receives the saved token after setup.</div></div>
+        <form id="credentials" class="panel form-card">
+          <label>Docker ID<input id="username" required autocomplete="username" placeholder="your-docker-id"></label>
+          <label>Personal access token<input id="token" type="password" required autocomplete="new-password" placeholder="dckr_pat_••••••••"></label>
+          <label>Namespace <span class="muted">(user or organization)</span><input id="namespace" placeholder="Defaults to Docker ID"></label>
+          <button class="primary" type="submit">Validate & save connection</button><button id="disconnect" class="danger-ghost" type="button">Remove saved credentials</button>
+          <p id="formMessage" class="form-message"></p>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <div id="selectionBar" class="selection hidden"><div><strong id="selectedCount">0 tags selected</strong><span id="selectedSize">0 B</span></div><button id="clearSelection" class="secondary">Clear</button><button id="openDelete" class="danger">Delete selected</button></div>
+  <dialog id="deleteDialog"><form method="dialog"><div class="warning-icon">!</div><h2>Delete selected tags?</h2><p>This permanently deletes <strong id="dialogCount"></strong> from Docker Hub. This action cannot be undone.</p><div id="deletePreview" class="delete-preview"></div><label>Type <strong>DELETE</strong> to confirm<input id="confirmText" autocomplete="off" placeholder="DELETE"></label><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirmDelete" value="default" class="danger" disabled>Delete permanently</button></div></form></dialog>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/app.js"></script>
+</body></html>
+
