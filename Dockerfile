@@ -9,6 +9,5 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /docker-trac
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /docker-tracker /docker-tracker
 EXPOSE 8080
-USER nonroot:nonroot
+USER 65532:65532
 ENTRYPOINT ["/docker-tracker"]
-

@@ -16,8 +16,8 @@ A small, self-hosted Go application for finding and bulk-deleting Docker Hub tag
 ## Build and deploy
 
 ```sh
-docker build -t harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.0 .
-docker push harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.0
+docker build -t harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.1 .
+docker push harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.1
 ```
 
 The deployment manifest uses that Harbor image. Apply it with:
