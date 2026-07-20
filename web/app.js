@@ -28,11 +28,11 @@ $("#credentials").onsubmit=async e=>{e.preventDefault();let btn=e.submitter;btn.
 $("#disconnect").onclick=async()=>{if(!confirm("Remove the Docker Hub credentials from the Kubernetes Secret?"))return;try{await api("/api/credentials",{method:"DELETE"});location.reload()}catch(e){toast(e.message)}};
 $("#search").oninput=e=>{state.query=e.target.value.trim().toLowerCase();clearTimeout(window.searchTimer);window.searchTimer=setTimeout(()=>{renderTags();loadRepos(1)},250)};
 $("#refresh").onclick=()=>{loadRepos(state.repoPage);if(state.repo)loadTags(state.tagPage)};
-$("#selectAll").onchange=e=>{visibleTags().forEach(t=>toggleTag(t.name,e.target.checked));renderTags()};
+$("#selectAll").onchange=e=>{let checked=e.target.checked;visibleTags().forEach(t=>toggleTag(t.name,checked));renderTags()};
 $("#runScan").onclick=runScan;
 $("#scanDays").onkeydown=e=>{if(e.key==="Enter")runScan()};
 $("#scanFilter").onkeydown=e=>{if(e.key==="Enter")runScan()};
-$("#scanSelectAll").onchange=e=>{state.scan.forEach((_,i)=>toggleScanTag(i,e.target.checked));renderScan()};
+$("#scanSelectAll").onchange=e=>{let checked=e.target.checked;state.scan.forEach((_,i)=>toggleScanTag(i,checked));renderScan()};
 $("#clearSelection").onclick=()=>{state.selected.clear();updateSelection();renderTags()};
 $("#openDelete").onclick=()=>{let items=[...state.selected.values()];$("#dialogCount").textContent=`${items.length} tag${items.length===1?'':'s'}`;$("#deletePreview").innerHTML=items.slice(0,30).map(x=>`${esc(x.repository)}:<strong>${esc(x.tag)}</strong>`).join("<br>")+(items.length>30?`<br>…and ${items.length-30} more`:"");$("#confirmText").value="";$("#confirmDelete").disabled=true;$("#deleteDialog").showModal()};
 $("#confirmText").oninput=e=>$("#confirmDelete").disabled=e.target.value!=="DELETE";
