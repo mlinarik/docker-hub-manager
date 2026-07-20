@@ -57,7 +57,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: docker-tracker
-          image: harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.1
+          image: harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - {name: http, containerPort: 8080, protocol: TCP}
@@ -68,8 +68,8 @@ spec:
           readinessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 2, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 10, periodSeconds: 20}
           resources:
-            requests: {cpu: 25m, memory: 32Mi}
-            limits: {cpu: 500m, memory: 128Mi}
+            requests: {cpu: 25m, memory: 32Mi, ephemeral-storage: 50Mi}
+            limits: {cpu: 500m, memory: 128Mi, ephemeral-storage: 200Mi}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities: {drop: ["ALL"]}

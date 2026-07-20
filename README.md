@@ -5,7 +5,9 @@ A small, self-hosted Go application for finding and bulk-deleting Docker Hub tag
 ## Features
 
 - Browse and filter Docker Hub repositories and tags
+- Overview dashboard with account-wide totals (pulls, storage, private/public split) and top repositories
 - Select tags across multiple repositories and delete up to 500 at a time
+- Delete entire repositories, confirmed by typing the repository name
 - Explicit `DELETE` confirmation and per-tag results
 - Responsive light/dark interface
 - Kubernetes-native Secret storage with narrowly scoped RBAC
@@ -16,8 +18,8 @@ A small, self-hosted Go application for finding and bulk-deleting Docker Hub tag
 ## Build and deploy
 
 ```sh
-docker build -t harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.1 .
-docker push harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.1
+docker build -t harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.2.0 .
+docker push harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.2.0
 ```
 
 The deployment manifest uses that Harbor image. Apply it with:
