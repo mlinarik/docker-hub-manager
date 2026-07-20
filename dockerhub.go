@@ -106,6 +106,34 @@ func (h *hubClient) tags(ctx context.Context, repo string, pageNumber, size int)
 	path := "/v2/namespaces/" + url.PathEscape(h.credentials.DockerNamespace) + "/repositories/" + url.PathEscape(repo) + "/tags?" + q.Encode()
 	return out, h.doJSON(ctx, "GET", path, &out)
 }
+func (h *hubClient) allRepositories(ctx context.Context, query string, maxPages int) ([]repository, error) {
+	var all []repository
+	for p := 1; p <= maxPages; p++ {
+		pg, err := h.repositories(ctx, p, 100, query)
+		if err != nil {
+			return all, err
+		}
+		all = append(all, pg.Results...)
+		if pg.Next == "" || len(pg.Results) == 0 {
+			break
+		}
+	}
+	return all, nil
+}
+func (h *hubClient) allTags(ctx context.Context, repo string, maxPages int) ([]tag, error) {
+	var all []tag
+	for p := 1; p <= maxPages; p++ {
+		pg, err := h.tags(ctx, repo, p, 100)
+		if err != nil {
+			return all, err
+		}
+		all = append(all, pg.Results...)
+		if pg.Next == "" || len(pg.Results) == 0 {
+			break
+		}
+	}
+	return all, nil
+}
 func (h *hubClient) deleteTag(ctx context.Context, repo, tagName string) error {
 	path := "/v2/namespaces/" + url.PathEscape(h.credentials.DockerNamespace) + "/repositories/" + url.PathEscape(repo) + "/tags/" + url.PathEscape(tagName)
 	return h.doJSON(ctx, "DELETE", path, nil)

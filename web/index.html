@@ -9,7 +9,7 @@
   <div class="shell">
     <aside>
       <a class="brand" href="/"><span class="mark">DT</span><span>Docker Tracker</span></a>
-      <nav><button class="nav active" data-view="images">▦ <span>Images</span></button><button class="nav" data-view="settings">⚙ <span>Connection</span></button></nav>
+      <nav><button class="nav active" data-view="images">▦ <span>Images</span></button><button class="nav" data-view="scan">⏱ <span>Age scan</span></button><button class="nav" data-view="settings">⚙ <span>Connection</span></button></nav>
       <div class="aside-bottom"><div class="connection"><span id="statusDot" class="dot"></span><div><strong id="statusLabel">Checking…</strong><small id="statusDetail">Kubernetes Secret</small></div></div></div>
     </aside>
     <main>
@@ -22,6 +22,19 @@
           <section class="panel repositories"><div class="panel-head"><div><h2>Repositories</h2><span id="repoCount" class="muted">—</span></div></div><div id="repoList" class="list"><div class="empty">Connect Docker Hub to begin.</div></div><div id="repoPager" class="pager"></div></section>
           <section class="panel tags"><div class="panel-head"><div><h2 id="tagTitle">Tags</h2><span id="tagCount" class="muted">Select a repository</span></div><label class="check-all"><input type="checkbox" id="selectAll"> Select visible</label></div><div id="tagList" class="tag-list"><div class="empty big">Choose a repository to inspect its tags.</div></div><div id="tagPager" class="pager"></div></section>
         </div>
+      </section>
+
+      <section id="scanView" class="hidden">
+        <div class="toolbar">
+          <label class="scan-field">Older than <input id="scanDays" type="number" min="0" max="3650" value="90"> days</label>
+          <label class="search"><span>⌕</span><input id="scanFilter" placeholder="Limit to repositories containing… (optional)" autocomplete="off"></label>
+          <button id="runScan" class="primary">Scan all repositories</button>
+        </div>
+        <div id="scanNotice" class="notice hidden"></div>
+        <section class="panel">
+          <div class="panel-head"><div><h2>Matching tags</h2><span id="scanCount" class="muted">Run a scan to find old tags</span></div><label class="check-all"><input type="checkbox" id="scanSelectAll"> Select all results</label></div>
+          <div id="scanList" class="tag-list"><div class="empty big">Search every repository for tags older than a chosen age, then bulk-select them for deletion.</div></div>
+        </section>
       </section>
 
       <section id="settingsView" class="hidden settings-wrap">

@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -73,6 +75,7 @@ func (a *application) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/credentials", a.deleteCredentials)
 	mux.HandleFunc("GET /api/repositories", a.repositories)
 	mux.HandleFunc("GET /api/repositories/{repository}/tags", a.tags)
+	mux.HandleFunc("GET /api/scan", a.scanTags)
 	mux.HandleFunc("POST /api/delete", a.deleteTags)
 	assets, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(assets)))
@@ -203,7 +206,7 @@ func (a *application) hub(r *http.Request) (*hubClient, error) {
 func (a *application) repositories(w http.ResponseWriter, r *http.Request) {
 	h, err := a.hub(r)
 	if err != nil {
-		problem(w, 401, "Connect Docker Hub credentials first")
+		problem(w, 401, msgConnectFirst)
 		return
 	}
 	page, size := parsePage(r)
@@ -217,7 +220,7 @@ func (a *application) repositories(w http.ResponseWriter, r *http.Request) {
 func (a *application) tags(w http.ResponseWriter, r *http.Request) {
 	h, err := a.hub(r)
 	if err != nil {
-		problem(w, 401, "Connect Docker Hub credentials first")
+		problem(w, 401, msgConnectFirst)
 		return
 	}
 	page, size := parsePage(r)
@@ -227,6 +230,94 @@ func (a *application) tags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, result)
+}
+
+const msgConnectFirst = "Connect Docker Hub credentials first"
+
+type scanMatch struct {
+	Repository string `json:"repository"`
+	Tag        string `json:"tag"`
+	LastPushed string `json:"lastPushed"`
+	LastPulled string `json:"lastPulled"`
+	FullSize   int64  `json:"fullSize"`
+	AgeDays    int    `json:"ageDays"`
+}
+
+func matchOldTags(repo string, tags []tag, cutoff time.Time) []scanMatch {
+	var out []scanMatch
+	for _, t := range tags {
+		ts := t.TagLastPushed
+		if ts == "" {
+			ts = t.LastUpdated
+		}
+		pushed, err := time.Parse(time.RFC3339, ts)
+		if err != nil || !pushed.Before(cutoff) {
+			continue
+		}
+		out = append(out, scanMatch{
+			Repository: repo, Tag: t.Name, LastPushed: ts,
+			LastPulled: t.TagLastPulled, FullSize: t.FullSize,
+			AgeDays: int(time.Since(pushed).Hours() / 24),
+		})
+	}
+	return out
+}
+
+func (a *application) scanTags(w http.ResponseWriter, r *http.Request) {
+	h, err := a.hub(r)
+	if err != nil {
+		problem(w, 401, msgConnectFirst)
+		return
+	}
+	days, err := strconv.Atoi(r.URL.Query().Get("olderThanDays"))
+	if err != nil || days < 0 || days > 3650 {
+		problem(w, 400, "olderThanDays must be between 0 and 3650")
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	repos, err := h.allRepositories(r.Context(), r.URL.Query().Get("q"), 10)
+	if err != nil {
+		problem(w, 502, err.Error())
+		return
+	}
+	var (
+		mu          sync.Mutex
+		wg          sync.WaitGroup
+		matches     []scanMatch
+		errs        []string
+		scannedTags int
+	)
+	jobs := make(chan repository)
+	for range 5 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for repo := range jobs {
+				tags, err := h.allTags(r.Context(), repo.Name, 20)
+				mu.Lock()
+				scannedTags += len(tags)
+				if err != nil {
+					errs = append(errs, repo.Name+": "+err.Error())
+				}
+				matches = append(matches, matchOldTags(repo.Name, tags, cutoff)...)
+				mu.Unlock()
+			}
+		}()
+	}
+	for _, repo := range repos {
+		jobs <- repo
+	}
+	close(jobs)
+	wg.Wait()
+	sort.Slice(matches, func(i, j int) bool { return matches[i].LastPushed < matches[j].LastPushed })
+	truncated := false
+	if len(matches) > 2000 {
+		matches, truncated = matches[:2000], true
+	}
+	writeJSON(w, 200, map[string]any{
+		"results": matches, "scannedRepos": len(repos), "scannedTags": scannedTags,
+		"truncated": truncated, "errors": errs,
+	})
 }
 
 type deleteRequest struct {
@@ -260,7 +351,7 @@ func (a *application) deleteTags(w http.ResponseWriter, r *http.Request) {
 	}
 	h, err := a.hub(r)
 	if err != nil {
-		problem(w, 401, "Connect Docker Hub credentials first")
+		problem(w, 401, msgConnectFirst)
 		return
 	}
 	results := make([]deleteResult, len(in.Items))

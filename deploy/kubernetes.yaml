@@ -57,7 +57,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       containers:
         - name: docker-tracker
-          image: harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.1
+          image: harbor.mlinarik.com/mlinarik/docker-hub-manager:v0.1.2
           imagePullPolicy: IfNotPresent
           ports:
             - {name: http, containerPort: 8080, protocol: TCP}
