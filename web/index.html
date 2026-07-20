@@ -9,18 +9,28 @@
   <div class="shell">
     <aside>
       <a class="brand" href="/"><span class="mark">DT</span><span>Docker Tracker</span></a>
-      <nav><button class="nav active" data-view="images">▦ <span>Images</span></button><button class="nav" data-view="scan">⏱ <span>Age scan</span></button><button class="nav" data-view="settings">⚙ <span>Connection</span></button></nav>
+      <nav><button class="nav" data-view="overview">◈ <span>Overview</span></button><button class="nav active" data-view="images">▦ <span>Images</span></button><button class="nav" data-view="scan">⏱ <span>Age scan</span></button><button class="nav" data-view="settings">⚙ <span>Connection</span></button></nav>
       <div class="aside-bottom"><div class="connection"><span id="statusDot" class="dot"></span><div><strong id="statusLabel">Checking…</strong><small id="statusDetail">Kubernetes Secret</small></div></div></div>
     </aside>
     <main>
       <header><div><p class="eyebrow">Registry workspace</p><h1 id="pageTitle">Images</h1></div><button id="theme" class="icon" title="Toggle color mode" aria-label="Toggle color mode">◐</button></header>
+
+      <section id="overviewView" class="hidden">
+        <div class="toolbar overview-toolbar"><span id="statsUpdated" class="muted"></span><button id="refreshStats" class="secondary">↻ Refresh</button></div>
+        <div id="statsNotice" class="notice hidden"></div>
+        <div id="kpis" class="kpis"><div class="empty big">Loading account statistics…</div></div>
+        <div class="layout stats-layout">
+          <section class="panel"><div class="panel-head"><div><h2>Most pulled</h2><span class="muted">top 5</span></div></div><div id="topPulls" class="list stat-list"></div></section>
+          <section class="panel"><div class="panel-head"><div><h2>Largest by storage</h2><span class="muted">top 5</span></div></div><div id="topSize" class="list stat-list"></div></section>
+        </div>
+      </section>
 
       <section id="imagesView">
         <div class="toolbar"><label class="search"><span>⌕</span><input id="search" placeholder="Filter repositories or tags…" autocomplete="off"></label><button id="refresh" class="secondary">↻ Refresh</button></div>
         <div id="notice" class="notice hidden"></div>
         <div class="layout">
           <section class="panel repositories"><div class="panel-head"><div><h2>Repositories</h2><span id="repoCount" class="muted">—</span></div></div><div id="repoList" class="list"><div class="empty">Connect Docker Hub to begin.</div></div><div id="repoPager" class="pager"></div></section>
-          <section class="panel tags"><div class="panel-head"><div><h2 id="tagTitle">Tags</h2><span id="tagCount" class="muted">Select a repository</span></div><label class="check-all"><input type="checkbox" id="selectAll"> Select visible</label></div><div id="tagList" class="tag-list"><div class="empty big">Choose a repository to inspect its tags.</div></div><div id="tagPager" class="pager"></div></section>
+          <section class="panel tags"><div class="panel-head"><div><h2 id="tagTitle">Tags</h2><span id="tagCount" class="muted">Select a repository</span></div><div class="panel-actions"><label class="check-all"><input type="checkbox" id="selectAll"> Select visible</label><button id="deleteRepo" class="danger-ghost hidden">Delete repository</button></div></div><div id="tagList" class="tag-list"><div class="empty big">Choose a repository to inspect its tags.</div></div><div id="tagPager" class="pager"></div></section>
         </div>
       </section>
 
@@ -52,6 +62,7 @@
 
   <div id="selectionBar" class="selection hidden"><div><strong id="selectedCount">0 tags selected</strong><span id="selectedSize">0 B</span></div><button id="clearSelection" class="secondary">Clear</button><button id="openDelete" class="danger">Delete selected</button></div>
   <dialog id="deleteDialog"><form method="dialog"><div class="warning-icon">!</div><h2>Delete selected tags?</h2><p>This permanently deletes <strong id="dialogCount"></strong> from Docker Hub. This action cannot be undone.</p><div id="deletePreview" class="delete-preview"></div><label>Type <strong>DELETE</strong> to confirm<input id="confirmText" autocomplete="off" placeholder="DELETE"></label><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirmDelete" value="default" class="danger" disabled>Delete permanently</button></div></form></dialog>
+  <dialog id="repoDialog"><form method="dialog"><div class="warning-icon">!</div><h2>Delete this repository?</h2><p>This permanently deletes <strong id="repoDialogName"></strong> — the repository and every one of its tags — from Docker Hub. This action cannot be undone.</p><label>Type the repository name to confirm<input id="repoConfirmText" autocomplete="off"></label><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button id="confirmRepoDelete" value="default" class="danger" disabled>Delete repository</button></div></form></dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/app.js"></script>
 </body></html>

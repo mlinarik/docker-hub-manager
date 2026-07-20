@@ -91,20 +91,24 @@ func (h *hubClient) doJSON(ctx context.Context, method, endpoint string, out any
 	}
 	return nil
 }
+func (h *hubClient) reposPath() string {
+	return "/v2/namespaces/" + url.PathEscape(h.credentials.DockerNamespace) + "/repositories"
+}
+func (h *hubClient) repoPath(repo string) string {
+	return h.reposPath() + "/" + url.PathEscape(repo)
+}
 func (h *hubClient) repositories(ctx context.Context, pageNumber, size int, query string) (page[repository], error) {
 	var out page[repository]
 	q := url.Values{"page": {strconv.Itoa(pageNumber)}, "page_size": {strconv.Itoa(size)}, "ordering": {"-last_updated"}}
 	if query != "" {
 		q.Set("name", query)
 	}
-	path := "/v2/namespaces/" + url.PathEscape(h.credentials.DockerNamespace) + "/repositories?" + q.Encode()
-	return out, h.doJSON(ctx, "GET", path, &out)
+	return out, h.doJSON(ctx, "GET", h.reposPath()+"?"+q.Encode(), &out)
 }
 func (h *hubClient) tags(ctx context.Context, repo string, pageNumber, size int) (page[tag], error) {
 	var out page[tag]
 	q := url.Values{"page": {strconv.Itoa(pageNumber)}, "page_size": {strconv.Itoa(size)}}
-	path := "/v2/namespaces/" + url.PathEscape(h.credentials.DockerNamespace) + "/repositories/" + url.PathEscape(repo) + "/tags?" + q.Encode()
-	return out, h.doJSON(ctx, "GET", path, &out)
+	return out, h.doJSON(ctx, "GET", h.repoPath(repo)+"/tags?"+q.Encode(), &out)
 }
 func (h *hubClient) allRepositories(ctx context.Context, query string, maxPages int) ([]repository, error) {
 	var all []repository
@@ -134,9 +138,11 @@ func (h *hubClient) allTags(ctx context.Context, repo string, maxPages int) ([]t
 	}
 	return all, nil
 }
+func (h *hubClient) deleteRepository(ctx context.Context, repo string) error {
+	return h.doJSON(ctx, "DELETE", h.repoPath(repo), nil)
+}
 func (h *hubClient) deleteTag(ctx context.Context, repo, tagName string) error {
-	path := "/v2/namespaces/" + url.PathEscape(h.credentials.DockerNamespace) + "/repositories/" + url.PathEscape(repo) + "/tags/" + url.PathEscape(tagName)
-	return h.doJSON(ctx, "DELETE", path, nil)
+	return h.doJSON(ctx, "DELETE", h.repoPath(repo)+"/tags/"+url.PathEscape(tagName), nil)
 }
 func apiError(resp *http.Response) error {
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))

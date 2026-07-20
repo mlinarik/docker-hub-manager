@@ -76,7 +76,9 @@ func (a *application) routes() http.Handler {
 	mux.HandleFunc("GET /api/repositories", a.repositories)
 	mux.HandleFunc("GET /api/repositories/{repository}/tags", a.tags)
 	mux.HandleFunc("GET /api/scan", a.scanTags)
+	mux.HandleFunc("GET /api/stats", a.stats)
 	mux.HandleFunc("POST /api/delete", a.deleteTags)
+	mux.HandleFunc("POST /api/repositories/delete", a.deleteRepositories)
 	assets, _ := fs.Sub(webFiles, "web")
 	mux.Handle("/", http.FileServer(http.FS(assets)))
 	return a.middleware(mux)
@@ -146,7 +148,7 @@ func (a *application) status(w http.ResponseWriter, r *http.Request) {
 func (a *application) saveCredentials(w http.ResponseWriter, r *http.Request) {
 	var in credentials
 	if err := decode(r, &in); err != nil {
-		problem(w, 400, "Invalid request")
+		problem(w, 400, msgInvalidRequest)
 		return
 	}
 	in.Username, in.Token, in.DockerNamespace = strings.TrimSpace(in.Username), strings.TrimSpace(in.Token), strings.TrimSpace(in.DockerNamespace)
@@ -232,7 +234,98 @@ func (a *application) tags(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, result)
 }
 
-const msgConnectFirst = "Connect Docker Hub credentials first"
+const (
+	msgConnectFirst   = "Connect Docker Hub credentials first"
+	msgInvalidRequest = "Invalid request"
+)
+
+type repoStat struct {
+	Name  string `json:"name"`
+	Value int64  `json:"value"`
+}
+
+func topRepositories(repos []repository, n int, value func(repository) int64) []repoStat {
+	sorted := make([]repository, len(repos))
+	copy(sorted, repos)
+	sort.Slice(sorted, func(i, j int) bool { return value(sorted[i]) > value(sorted[j]) })
+	out := []repoStat{}
+	for _, r := range sorted {
+		if len(out) == n {
+			break
+		}
+		if value(r) > 0 {
+			out = append(out, repoStat{Name: r.Name, Value: value(r)})
+		}
+	}
+	return out
+}
+
+type repoTotals struct {
+	Pulls, Storage        int64
+	Private, StorageKnown int
+	LastPushed            time.Time
+	LastPushedRepo        string
+}
+
+func aggregateRepositories(repos []repository) repoTotals {
+	var t repoTotals
+	for _, repo := range repos {
+		t.Pulls += repo.PullCount
+		if repo.StorageSize != nil {
+			t.Storage += *repo.StorageSize
+			t.StorageKnown++
+		}
+		if repo.IsPrivate {
+			t.Private++
+		}
+		if ts, err := time.Parse(time.RFC3339, repo.LastUpdated); err == nil && ts.After(t.LastPushed) {
+			t.LastPushed, t.LastPushedRepo = ts, repo.Name
+		}
+	}
+	return t
+}
+
+func (a *application) stats(w http.ResponseWriter, r *http.Request) {
+	h, err := a.hub(r)
+	if err != nil {
+		problem(w, 401, msgConnectFirst)
+		return
+	}
+	var (
+		repos      []repository
+		totalRepos int
+	)
+	for p := 1; p <= 30; p++ {
+		pg, err := h.repositories(r.Context(), p, 100, "")
+		if err != nil {
+			problem(w, 502, err.Error())
+			return
+		}
+		totalRepos = pg.Count
+		repos = append(repos, pg.Results...)
+		if pg.Next == "" || len(pg.Results) == 0 {
+			break
+		}
+	}
+	totals := aggregateRepositories(repos)
+	lastPushedAt := ""
+	if !totals.LastPushed.IsZero() {
+		lastPushedAt = totals.LastPushed.Format(time.RFC3339)
+	}
+	writeJSON(w, 200, map[string]any{
+		"totalRepos": totalRepos, "fetchedRepos": len(repos),
+		"totalPulls": totals.Pulls, "totalStorage": totals.Storage, "storageKnown": totals.StorageKnown,
+		"privateRepos": totals.Private, "publicRepos": len(repos) - totals.Private,
+		"lastPushed": lastPushedAt, "lastPushedRepo": totals.LastPushedRepo,
+		"topByPulls": topRepositories(repos, 5, func(r repository) int64 { return r.PullCount }),
+		"topBySize": topRepositories(repos, 5, func(r repository) int64 {
+			if r.StorageSize == nil {
+				return 0
+			}
+			return *r.StorageSize
+		}),
+	})
+}
 
 type scanMatch struct {
 	Repository string `json:"repository"`
@@ -338,7 +431,7 @@ type deleteResult struct {
 func (a *application) deleteTags(w http.ResponseWriter, r *http.Request) {
 	var in deleteRequest
 	if err := decode(r, &in); err != nil {
-		problem(w, 400, "Invalid request")
+		problem(w, 400, msgInvalidRequest)
 		return
 	}
 	if in.Confirm != "DELETE" {
@@ -386,4 +479,55 @@ func (a *application) deleteTags(w http.ResponseWriter, r *http.Request) {
 		<-done
 	}
 	writeJSON(w, 200, map[string]any{"results": results})
+}
+
+type repoDeleteRequest struct {
+	Repositories []string `json:"repositories"`
+	Confirm      string   `json:"confirm"`
+}
+type repoDeleteResult struct {
+	Repository string `json:"repository"`
+	Deleted    bool   `json:"deleted"`
+	Error      string `json:"error,omitempty"`
+}
+
+func (a *application) deleteRepositories(w http.ResponseWriter, r *http.Request) {
+	var in repoDeleteRequest
+	if err := decode(r, &in); err != nil {
+		problem(w, 400, msgInvalidRequest)
+		return
+	}
+	if in.Confirm != "DELETE" {
+		problem(w, 400, "Type DELETE to confirm")
+		return
+	}
+	if len(in.Repositories) == 0 || len(in.Repositories) > 25 {
+		problem(w, 400, "Select between 1 and 25 repositories")
+		return
+	}
+	h, err := a.hub(r)
+	if err != nil {
+		problem(w, 401, msgConnectFirst)
+		return
+	}
+	results := make([]repoDeleteResult, len(in.Repositories))
+	for i, name := range in.Repositories {
+		results[i] = a.deleteOneRepository(r.Context(), h, name)
+	}
+	writeJSON(w, 200, map[string]any{"results": results})
+}
+
+func (a *application) deleteOneRepository(ctx context.Context, h *hubClient, name string) repoDeleteResult {
+	res := repoDeleteResult{Repository: name}
+	if name == "" || strings.ContainsAny(name, "/?#") {
+		res.Error = "Invalid repository"
+		return res
+	}
+	if err := h.deleteRepository(ctx, name); err != nil {
+		res.Error = err.Error()
+		return res
+	}
+	res.Deleted = true
+	a.log.Info("repository deleted", "repository", name)
+	return res
 }
